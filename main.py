@@ -56,7 +56,7 @@ def analyze_stock(ticker)
     except return None
 
 # --- UI HEADER & STORIES ---
-st.title(📸 NiftyGram)
+st.title("📸 NiftyGram")
 tickers = [RELIANCE.NS, TCS.NS, HDFCBANK.NS, INFY.NS, ICICIBANK.NS]
 
 # Story Bar (Top Gainers)
