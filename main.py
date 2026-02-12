@@ -87,19 +87,68 @@ if 'gainers' in st.session_state:
         st.dataframe(st.session_state.losers, hide_index=True, use_container_width=True)
 
     # --- 5. THE SPIN GAME (WHICH TO BUY?) ---
+   # --- 4. THE VISUAL SPINNING WHEEL ---
+if 'gainers' in st.session_state:
     st.divider()
     st.subheader("🎡 The Nifty Fortune Wheel")
-    st.write("Let AI pick which stock to buy with your ₹5,00,000!")
+    
+    # Extract names for the wheel segments
+    top_stocks = st.session_state.gainers['Stock'].tolist()[:8] # Max 8 for best look
+    
+    # Generate CSS for segments
+    segments_html = ""
+    for i, name in enumerate(top_stocks):
+        deg = i * (360 / len(top_stocks))
+        segments_html += f'<div class="segment" style="transform: rotate({deg}deg);">{name}</div>'
 
-    if st.button("🎰 SPIN THE WHEEL"):
-        potential_buys = st.session_state.gainers['Stock'].tolist()
+    # The HTML/CSS Wheel
+    wheel_html = f"""
+    <style>
+        .wheel-container {{ position: relative; width: 300px; height: 300px; margin: auto; }}
+        .wheel {{
+            width: 100%; height: 100%; border-radius: 50%; border: 8px solid #333;
+            position: relative; overflow: hidden; transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
+            background: conic-gradient(#e1306c 0deg 45deg, #fff 45deg 90deg, #e1306c 90deg 135deg, #fff 135deg 180deg, #e1306c 180deg 225deg, #fff 225deg 270deg, #e1306c 270deg 315deg, #fff 315deg 360deg);
+        }}
+        .segment {{
+            position: absolute; width: 50%; height: 50%; transform-origin: 100% 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; color: #333; padding-left: 20px;
+        }}
+        .pointer {{
+            position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+            width: 0; height: 0; border-left: 15px solid transparent;
+            border-right: 15px solid transparent; border-top: 30px solid #28a745; z-index: 10;
+        }}
+    </style>
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <div class="wheel" id="main-wheel">
+            {segments_html}
+        </div>
+    </div>
+    """
+    
+    st.components.v1.html(wheel_html + """
+    <script>
+        window.parent.document.addEventListener('spin_wheel', function(e) {
+            const wheel = document.getElementById('main-wheel');
+            const randomDeg = Math.floor(5000 + Math.random() * 5000);
+            wheel.style.transform = "rotate(" + randomDeg + "deg)";
+        });
+    </script>
+    """, height=350)
+
+    if st.button("🎰 SPIN FOR A BUY"):
+        # Trigger the visual spin
+        final_choice = np.random.choice(top_stocks)
+        st.balloons()
+        st.success(f"✅ AI Selection: {final_choice}")
         
-        # Simulated Spin Animation
-        placeholder = st.empty()
-        for i in range(12):
-            temp_pick = np.random.choice(potential_buys)
-            placeholder.markdown(f"<h1 style='text-align: center; color: #e1306c;'>🎡 {temp_pick}</h1>", unsafe_allow_html=True)
-            time.sleep(0.1)
+        # Quantity calculation for your ₹5 Lakhs
+        win_row = st.session_state.gainers[st.session_state.gainers['Stock'] == final_choice].iloc[0]
+        qty = int(500000 // win_row['Today Price'])
+        st.metric(f"Recommended Quantity for {final_choice}", f"{qty} Shares")
         
         # Final Selection
         final_pick = np.random.choice(potential_buys)
