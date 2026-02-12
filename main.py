@@ -7,113 +7,103 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense
 import datetime
 
-# --- 1. CONFIG ---
-st.set_page_config(page_title="NiftyGram AI Pro", layout="wide")
+# --- 1. CONFIG & SYSTEM SETUP ---
+st.set_page_config(page_title="Nifty 50 AI Command", layout="wide")
 
-# --- 2. AI PREDICTION ENGINE (LSTM) ---
 @st.cache_data(ttl=3600)
-def get_quick_pred(ticker):
+def get_lstm_pred(ticker):
     try:
         data = yf.download(ticker, period="1y", interval="1d", progress=False)
         df = data[['Close']].values
         scaler = MinMaxScaler(feature_range=(0,1))
         scaled_data = scaler.fit_transform(df)
-        
-        X_train = np.array([scaled_data[-61:-1, 0]]).reshape(1, 60, 1)
-        y_train = np.array([scaled_data[-1, 0]])
-        
-        model = Sequential([LSTM(30, input_shape=(60, 1)), Dense(1)])
+        # Ultra-fast training for batch processing
+        X = np.array([scaled_data[-61:-1, 0]]).reshape(1, 60, 1)
+        y = np.array([scaled_data[-1, 0]])
+        model = Sequential([LSTM(20, input_shape=(60, 1)), Dense(1)])
         model.compile(optimizer='adam', loss='mean_squared_error')
-        model.fit(X_train, y_train, epochs=1, verbose=0)
-        
-        input_data = scaled_data[-60:].reshape(1, 60, 1)
-        p1 = model.predict(input_data, verbose=0)
-        new_input = np.append(input_data[:, 1:, :], p1.reshape(1,1,1), axis=1)
-        p2 = model.predict(new_input, verbose=0)
-        
-        res = scaler.inverse_transform(np.array([p1[0,0], p2[0,0]]).reshape(-1, 1))
-        return res.flatten().tolist()
-    except:
-        return [0, 0]
+        model.fit(X, y, epochs=1, verbose=0)
+        # Predict 2nd Day
+        inp = scaled_data[-60:].reshape(1, 60, 1)
+        p1 = model.predict(inp, verbose=0)
+        p2 = model.predict(np.append(inp[:, 1:, :], p1.reshape(1,1,1), axis=1), verbose=0)
+        res = scaler.inverse_transform(p2)
+        return round(res.item(), 2)
+    except: return 0
 
-# --- 3. DATA SNAPSHOT ---
-@st.cache_data(ttl=600)
-def get_ranked_forecasts():
+# --- 2. THE FULL NIFTY 50 DATA ENGINE ---
+@st.cache_data(ttl=900)
+def process_nifty_50():
     tickers = [
-        "RELIANCE.NS", "TCS.NS", "HDFCBANK.NS", "INFY.NS", "ICICIBANK.NS",
-        "HINDUNILVR.NS", "ITC.NS", "SBIN.NS", "BHARTIARTL.NS", "KOTAKBANK.NS",
-        "LT.NS", "AXISBANK.NS", "ASIANPAINT.NS", "MARUTI.NS", "TITAN.NS"
+        "ADANIENT.NS", "ADANIPORTS.NS", "APOLLOHOSP.NS", "ASIANPAINT.NS", "AXISBANK.NS",
+        "BAJAJ-AUTO.NS", "BAJFINANCE.NS", "BAJAJFINSV.NS", "BPCL.NS", "BHARTIARTL.NS",
+        "BRITANNIA.NS", "CIPLA.NS", "COALINDIA.NS", "DIVISLAB.NS", "DRREDDY.NS",
+        "EICHERMOT.NS", "GRASIM.NS", "HCLTECH.NS", "HDFCBANK.NS", "HDFCLIFE.NS",
+        "HEROMOTOCO.NS", "HINDALCO.NS", "HINDUNILVR.NS", "ICICIBANK.NS", "ITC.NS",
+        "INDUSINDBK.NS", "INFY.NS", "JSWSTEEL.NS", "KOTAKBANK.NS", "LTIM.NS",
+        "LT.NS", "M&M.NS", "MARUTI.NS", "NTPC.NS", "NESTLEIND.NS",
+        "ONGC.NS", "POWERGRID.NS", "RELIANCE.NS", "SBILIFE.NS", "SBIN.NS",
+        "SUNPHARMA.NS", "TCS.NS", "TATACONSUM.NS", "TATAMOTORS.NS", "TATASTEEL.NS",
+        "TECHM.NS", "TITAN.NS", "UPL.NS", "ULTRACEMCO.NS", "WIPRO.NS"
     ]
-    data = []
-    for t in tickers:
+    results = []
+    progress_bar = st.progress(0)
+    for i, t in enumerate(tickers):
         try:
             stock = yf.Ticker(t)
-            price = stock.fast_info['last_price']
-            change_pct = ((price - stock.fast_info['previous_close']) / stock.fast_info['previous_close']) * 100
-            
-            preds = get_quick_pred(t)
-            day2_change = ((preds[1] - price) / price) * 100
-            
-            if day2_change >= 2.0: signal = "✅ BUY"
-            elif day2_change <= -2.0: signal = "🚨 SELL"
-            else: signal = "⏳ WAIT"
-            
-            data.append({
-                'Ticker': t,
-                'Company': t.replace(".NS", ""),
-                'Day 2 Price': round(preds[1], 2),
-                'Live Price': round(price, 2),
-                'Change %': round(change_pct, 2),
-                'Signal': signal
+            live = stock.fast_info['last_price']
+            future = get_lstm_pred(t)
+            gain_loss = ((future - live) / live) * 100
+            results.append({
+                'Stock': t.replace(".NS", ""),
+                'Today Price': round(live, 2),
+                'Future Price': future,
+                '% Change': round(gain_loss, 2)
             })
         except: continue
-    return pd.DataFrame(data)
+        progress_bar.progress((i + 1) / len(tickers))
+    return pd.DataFrame(results)
 
-# --- 4. UI LAYOUT ---
-st.title("📊 Nifty 50 Execution Dashboard")
+# --- 3. UI DASHBOARD ---
+st.title("📈 Nifty 50 AI Forecast Dashboard")
+st.write(f"📍 Aizawl, Mizoram | Full 50-Stock Analysis | {datetime.date.today()}")
 
-# Sidebar Capital Input
-with st.sidebar:
-    st.header("💰 Capital Allocator")
-    user_budget = st.number_input("Enter Trading Capital (₹)", min_value=0, value=500000, step=10000)
-    st.divider()
-    st.info("Input your total budget to see the share quantity for BUY signals.")
-
-with st.spinner("Analyzing AI Signals..."):
-    full_data = get_ranked_forecasts()
-    # Rank them for display
-    gainers = full_data.sort_values(by='Change %', ascending=False).head(10).copy()
-    gainers.insert(0, 'SL', range(1, len(gainers) + 1))
-
-# Display Tables
-col1, col2 = st.columns([2, 1])
-
-with col1:
-    st.markdown("#### 🔥 AI Strategy Board")
-    st.dataframe(
-        gainers[['SL', 'Company', 'Day 2 Price', 'Live Price', 'Signal']], 
-        hide_index=True, use_container_width=True
-    )
-
-with col2:
-    st.markdown("#### ⚡ Execution Plan")
-    # Filter for BUY signals
-    buy_list = gainers[gainers['Signal'] == "✅ BUY"]
+if st.button('🔄 Start Full Market Scan'):
+    df = process_nifty_50()
     
-    if not buy_list.empty:
-        selected_buy = st.selectbox("Pick a BUY Stock", buy_list['Company'])
-        stock_row = buy_list[buy_list['Company'] == selected_buy].iloc[0]
-        
-        live_p = stock_row['Live Price']
-        qty = int(user_budget // live_p)
-        total_inv = qty * live_p
-        
-        st.success(f"**Strategy for {selected_buy}**")
-        st.metric("Quantity to Buy", f"{qty} Shares")
-        st.metric("Total Investment", f"₹{total_inv:,.2f}")
-        st.write(f"Leftover Cash: ₹{user_budget - total_inv:,.2f}")
-    else:
-        st.warning("No ✅ BUY signals found in the top list currently.")
+    # Split into Gainers and Losers
+    gainers = df[df['% Change'] > 0].sort_values('% Change', ascending=False)
+    losers = df[df['% Change'] < 0].sort_values('% Change', ascending=True)
 
-st.divider()
-st.caption("Disclaimer: Calculations are based on current market prices and AI forecasts. Brokerage charges not included.")
+    # --- TOP GAINERS & LOSERS COLUMNS ---
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.success("🚀 **Predicted Gainers**")
+        st.dataframe(gainers.assign(Rank=range(1, len(gainers)+1)).set_index('Rank'), use_container_width=True)
+
+    with col2:
+        st.error("📉 **Predicted Losers**")
+        st.dataframe(losers.assign(Rank=range(1, len(losers)+1)).set_index('Rank'), use_container_width=True)
+
+    # --- 4. DIVERSIFICATION MODE (THE 5 LAKH STRATEGY) ---
+    st.divider()
+    st.subheader("💰 Smart Capital Allocation (₹5,00,000)")
+    
+    top_3 = gainers.head(3)
+    if not top_3.empty:
+        budget_per_stock = 500000 / len(top_3)
+        cols = st.columns(len(top_3))
+        
+        for i, (index, row) in enumerate(top_3.iterrows()):
+            qty = int(budget_per_stock // row['Today Price'])
+            actual_inv = qty * row['Today Price']
+            with cols[i]:
+                st.info(f"**{row['Stock']}**")
+                st.metric("Buy Qty", f"{qty}")
+                st.metric("Invest", f"₹{actual_inv:,.0f}")
+                st.write(f"Exp. Growth: {row['% Change']}%")
+    else:
+        st.warning("No gainers predicted for current cycle.")
+else:
+    st.info("Click the button above to begin the AI scan for all 50 stocks. This may take 30-60 seconds.")
