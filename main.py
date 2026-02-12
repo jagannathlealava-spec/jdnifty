@@ -2,23 +2,23 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import time
 import datetime
 
-# --- 1. CONFIG & STYLING ---
-st.set_page_config(page_title="Nifty 50 Ranked Turbo", layout="wide")
+# --- 1. CONFIG & SYSTEM SETUP ---
+st.set_page_config(page_title="Nifty 50 Turbo", layout="wide")
 
 st.markdown("""
 <style>
     .stApp { background-color: #fafafa; }
     .card { background: white; border: 1px solid #dbdbdb; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
-    .gainer-val { color: #22c55e; font-weight: bold; }
-    .loser-val { color: #ef4444; font-weight: bold; }
+    .stMetric { background: #f8f9fa; padding: 10px; border-radius: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. FAST VECTORIZED ENGINE ---
+# --- 2. THE TURBO DATA ENGINE ---
 @st.cache_data(ttl=300)
-def get_ranked_analysis():
+def get_turbo_analysis():
     tickers = [
         "ADANIENT.NS", "ADANIPORTS.NS", "APOLLOHOSP.NS", "ASIANPAINT.NS", "AXISBANK.NS",
         "BAJAJ-AUTO.NS", "BAJFINANCE.NS", "BAJAJFINSV.NS", "BPCL.NS", "BHARTIARTL.NS",
@@ -32,7 +32,7 @@ def get_ranked_analysis():
         "TECHM.NS", "TITAN.NS", "UPL.NS", "ULTRACEMCO.NS", "WIPRO.NS"
     ]
     
-    # Bulk Fetch 30 days of data
+    # Bulk Fetch 30 days of data in ONE go
     data = yf.download(tickers, period="30d", interval="1d", group_by='ticker', progress=False)
     
     results = []
@@ -41,98 +41,75 @@ def get_ranked_analysis():
             hist = data[t]['Close'].dropna()
             live_price = hist.iloc[-1]
             
-            # High-speed Trend Math
+            # Vectorized Linear Regression (Slope)
             y = hist.values
             x = np.arange(len(y))
             slope, intercept = np.polyfit(x, y, 1)
             
-            # Predict Day 1 and Day 2
-            pred_day1 = slope * (len(y)) + intercept
-            pred_day2 = slope * (len(y) + 1) + intercept
-            gain_loss = ((pred_day2 - live_price) / live_price) * 100
+            # Predict Days
+            p1 = slope * (len(y)) + intercept
+            p2 = slope * (len(y) + 1) + intercept
+            gain_loss = ((p2 - live_price) / live_price) * 100
             
             results.append({
                 'Stock': t.replace(".NS", ""),
                 'Today Price': round(live_price, 2),
-                'Day 1 Price': round(pred_day1, 2),
-                'Day 2 Price': round(pred_day2, 2),
+                'Day 1 Price': round(p1, 2),
+                'Day 2 Price': round(p2, 2),
                 '% Forecast': round(gain_loss, 2)
             })
         except: continue
     return pd.DataFrame(results)
 
-# --- 3. UI DASHBOARD ---
-st.title("⚡ Ranked Nifty 50 Turbo Forecast")
-st.write(f"📍 Aizawl | Sorted by Momentum | {datetime.date.today().strftime('%d %b %Y')}")
+# --- 3. UI DASHBOARD & SESSION STATE ---
+st.title("⚡ Nifty 50 Turbo AI Dashboard")
+st.write(f"📍 Aizawl, Mizoram | Full 50-Stock Scan | {datetime.date.today()}")
 
-if st.button('🚀 Execute High-Speed Scan'):
-    with st.spinner('Ranking 50 stocks by trend strength...'):
-        full_df = get_ranked_analysis()
+if st.button('🚀 RUN HIGH-SPEED SCAN'):
+    with st.spinner('Ranking 50 stocks by momentum...'):
+        full_df = get_turbo_analysis()
         
-        # 1. Rank Gainers (Highest % Forecast first)
-        gainers = full_df[full_df['% Forecast'] > 0].sort_values('% Forecast', ascending=False).head(10).copy()
-        gainers.insert(0, 'SL', range(1, len(gainers) + 1))
+        # Save results to Session State so the Spin Game can find them
+        st.session_state.gainers = full_df[full_df['% Forecast'] > 0].sort_values('% Forecast', ascending=False).head(10).copy()
+        st.session_state.gainers.insert(0, 'SL', range(1, len(st.session_state.gainers) + 1))
 
-        # 2. Rank Losers (Most Negative % Forecast first)
-        losers = full_df[full_df['% Forecast'] < 0].sort_values('% Forecast', ascending=True).head(10).copy()
-        losers.insert(0, 'SL', range(1, len(losers) + 1))
+        st.session_state.losers = full_df[full_df['% Forecast'] < 0].sort_values('% Forecast', ascending=True).head(10).copy()
+        st.session_state.losers.insert(0, 'SL', range(1, len(st.session_state.losers) + 1))
 
+# --- 4. DISPLAY TABLES ---
+if 'gainers' in st.session_state:
     col1, col2 = st.columns(2)
-    
     with col1:
         st.success("📈 **Top 10 Ranked Gainers**")
-        st.dataframe(gainers, hide_index=True, use_container_width=True)
-
+        st.dataframe(st.session_state.gainers, hide_index=True, use_container_width=True)
     with col2:
         st.error("📉 **Top 10 Ranked Losers**")
-        st.dataframe(losers, hide_index=True, use_container_width=True)
+        st.dataframe(st.session_state.losers, hide_index=True, use_container_width=True)
 
-    # --- 4. THE SPIN GAME (WHICH ONE TO BUY?) ---
-st.divider()
-st.subheader("🎡 The Nifty Fortune Wheel")
-st.write("Can't decide where to put your ₹5 Lakhs? Let the AI spin for you!")
-
-if not gainers.empty:
-    if st.button("🎰 SPIN THE WHEEL"):
-        # Get list of top 10 gainers
-        potential_buys = gainers['Stock'].tolist()
-        
-        # 1. Animation Loop
-        with st.empty():
-            for i in range(15):  # Flash different stocks to simulate spinning
-                random_pick = np.random.choice(potential_buys)
-                st.markdown(f"<h1 style='text-align: center; color: #e1306c;'>🎡 {random_pick}</h1>", unsafe_allow_html=True)
-                import time
-                time.sleep(0.1) # Fast spin
-            
-            # 2. The Final Result
-            final_pick = np.random.choice(potential_buys)
-            st.markdown(f"<h1 style='text-align: center; color: #28a745;'>✅ BUY: {final_pick}</h1>", unsafe_allow_html=True)
-            st.balloons() # Victory celebration!
-            
-            # 3. Quick Trading Card for the winner
-            win_row = gainers[gainers['Stock'] == final_pick].iloc[0]
-            st.info(f"**AI Recommendation:** Buying **{final_pick}** today shows a predicted trend of **{win_row['% Forecast']}%**. With ₹5 Lakhs, you can grab approximately **{int(500000 // win_row['Today Price'])}** shares.")
-else:
-    st.warning("No gainers found to spin. Market might be in a heavy dip!")
-
-    # SMART CAPITAL ALLOCATOR
+    # --- 5. THE SPIN GAME (WHICH TO BUY?) ---
     st.divider()
-    st.subheader("💰 Strategy Execution (₹5,00,000 Capital)")
-    top_3 = gainers.head(3)
-    
-    if not top_3.empty:
-        budget = 500000 / len(top_3)
-        cols = st.columns(3)
-        for i, (idx, row) in enumerate(top_3.iterrows()):
-            qty = int(budget // row['Today Price'])
-            with cols[i]:
-                st.info(f"**#{i+1} Target: {row['Stock']}**")
-                st.metric("Shares to Buy", f"{qty}")
-                st.metric("Required Cash", f"₹{qty * row['Today Price']:,.0f}")
-                st.write(f"Forecast: +{row['% Forecast']}%")
-    else:
-        st.warning("Market trend is currently sideways. No strong Buy signals found.")
+    st.subheader("🎡 The Nifty Fortune Wheel")
+    st.write("Let AI pick which stock to buy with your ₹5,00,000!")
 
-st.divider()
-st.caption("Turbo Engine: Uses Linear Least Squares for momentum detection. Processing time: < 3 seconds.")
+    if st.button("🎰 SPIN THE WHEEL"):
+        potential_buys = st.session_state.gainers['Stock'].tolist()
+        
+        # Simulated Spin Animation
+        placeholder = st.empty()
+        for i in range(12):
+            temp_pick = np.random.choice(potential_buys)
+            placeholder.markdown(f"<h1 style='text-align: center; color: #e1306c;'>🎡 {temp_pick}</h1>", unsafe_allow_html=True)
+            time.sleep(0.1)
+        
+        # Final Selection
+        final_pick = np.random.choice(potential_buys)
+        placeholder.markdown(f"<h1 style='text-align: center; color: #28a745;'>✅ BUY: {final_pick}</h1>", unsafe_allow_html=True)
+        st.balloons()
+        
+        # Calculation for ₹5 Lakhs
+        win_data = st.session_state.gainers[st.session_state.gainers['Stock'] == final_pick].iloc[0]
+        qty = int(500000 // win_data['Today Price'])
+        st.success(f"**Strategy for {final_pick}:** Buy **{qty}** shares at ₹{win_data['Today Price']}. Predicted 48h trend: **+{win_data['% Forecast']}%**")
+
+else:
+    st.info("The engine is warm! Click 'Run High-Speed Scan' to start your session.")
