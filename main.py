@@ -8,6 +8,36 @@ import nltk
 import requests
 import os
 
+import streamlit as st
+import yfinance as yf
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
+def get_secure_session():
+    session = requests.Session()
+    # Retry strategy: If Yahoo says "No," we wait and try 3 more times automatically
+    retry = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount('https://', adapter)
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+    })
+    return session
+
+def analyze_stock(ticker):
+    try:
+        session = get_secure_session()
+        t = yf.Ticker(ticker, session=session)
+        # We use '1mo' because smaller requests are less likely to be blocked
+        hist = t.history(period="1mo")
+        if hist.empty: return None
+        # ... (rest of your prediction math)
+        return {"price": hist['Close'].iloc[-1]}
+    except:
+        return None
 # 1. CRITICAL: Fix for yfinance caching on Streamlit Cloud
 import appdirs as ad
 ad.user_cache_dir = lambda *args: "/tmp"
