@@ -28,17 +28,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 3. --- DATA ENGINE ---
+import requests
+
 def analyze_stock(ticker):
     try:
-        t = yf.Ticker(ticker)
-        hist = t.history(period="1y", interval="1d", auto_adjust=True)
-        if hist.empty: return None
+        # 1. Add 'User-Agent' to mimic a real browser
+        # This prevents Yahoo from blocking the request
+        session = requests.Session()
+        session.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        })
         
+        t = yf.Ticker(ticker, session=session)
+        
+        # 2. Try fetching a smaller window of data first (1 month)
+        hist = t.history(period="1mo", interval="1d", auto_adjust=True)
+        
+        # If 1mo is empty, the ticker might be wrong or the server is blocked
+        if hist.empty:
+            return None
+        
+        # Math: Linear Regression for Trend
         y = hist['Close'].values.reshape(-1, 1)
         X = np.arange(len(y)).reshape(-1, 1)
         model = LinearRegression().fit(X, y)
         pred = model.predict([[len(y)]]).item()
         
+        # Sentiment logic
         news = t.news
         sent = 0
         if news:
@@ -46,7 +62,9 @@ def analyze_stock(ticker):
             sent = sum(scores) / len(scores)
             
         return {"price": y[-1].item(), "pred": pred, "sent": sent}
-    except:
+    except Exception as e:
+        # This will print the exact error in your Streamlit logs
+        print(f"Error for {ticker}: {e}")
         return None
 
 # 4. --- UI ---
