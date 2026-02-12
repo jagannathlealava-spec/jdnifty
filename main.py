@@ -39,7 +39,7 @@ st.markdown("""
 def analyze_stock(ticker)
     try
         t = yf.Ticker(ticker)
-        hist = t.history(period=1y, interval=1d, auto_adjust=True)
+        hist = t.history(period="1y", interval="1d", auto_adjust=True)
         if hist.empty return None
         
         # Math Prediction
