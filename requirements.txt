@@ -3,7 +3,6 @@ requests
 beautifulsoup4
 pandas
 numpy
-nltk
 yfinance
 tensorflow
 scikit-learn
