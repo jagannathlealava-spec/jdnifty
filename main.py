@@ -33,6 +33,7 @@ st.markdown("""
     }
     style
 , unsafe_allow_html=True)
+}
 
 # --- DATA ENGINE ---
 @st.cache_data(ttl=600) # Cache data for 10 minutes to save speed
