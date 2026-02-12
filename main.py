@@ -10,7 +10,7 @@ import nltk
 nltk.download('vader_lexicon', quiet=True)
 sia = SentimentIntensityAnalyzer()
 
-st.set_page_config(page_title=NiftyGram AI, layout=centered)
+st.set_page_config(page_title="NiftyGram AI", layout="centered")
 
 # --- APP STYLING ---
 st.markdown(
