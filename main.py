@@ -17,8 +17,19 @@ st.markdown(
     style
     .stApp { background-color #fafafa; }
     .stock-card {
-        background-color white; border 1px solid #dbdbdb;
-        border-radius 8px; padding 15px; margin-bottom 20px;
+        # --- APP STYLING ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #fafafa; }
+    .stock-card {
+        background-color: white; 
+        border: 1px solid #dbdbdb;
+        border-radius: 8px; 
+        padding: 15px; 
+        margin-bottom: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
     }
     style
 , unsafe_allow_html=True)
