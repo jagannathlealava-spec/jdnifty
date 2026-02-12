@@ -6,14 +6,14 @@ import time
 import datetime
 
 # --- 1. CONFIG & SYSTEM SETUP ---
-st.set_page_config(page_title="Nifty 50 Turbo", layout="wide")
+st.set_page_config(page_title="Nifty 50 Turbo Pro", layout="wide")
 
 st.markdown("""
 <style>
     .stApp { background-color: #fafafa; }
     .card { background: white; border: 1px solid #dbdbdb; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
     
-    /* Wheel Container Styling */
+    /* Rotating Wheel CSS */
     .wheel-container { position: relative; width: 300px; height: 300px; margin: 30px auto; }
     .pointer {
         position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
@@ -24,6 +24,7 @@ st.markdown("""
         width: 100%; height: 100%; border-radius: 50%; border: 5px solid #333;
         background: conic-gradient(#e1306c 0 45deg, #fff 45deg 90deg, #e1306c 90deg 135deg, #fff 135deg 180deg, #e1306c 180deg 225deg, #fff 225deg 270deg, #e1306c 270deg 315deg, #fff 315deg 360deg);
         display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+        transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -64,9 +65,14 @@ def get_turbo_analysis():
         except: continue
     return pd.DataFrame(results)
 
-# --- 3. UI DASHBOARD ---
+# --- 3. SIDEBAR & USER INPUTS ---
+st.sidebar.header("💰 Investment Controls")
+trading_capital = st.sidebar.number_input("Enter Trading Capital (₹)", min_value=1000, value=500000, step=5000)
+st.sidebar.write(f"Allocating funds based on: **₹{trading_capital:,.2f}**")
+
+# --- 4. MAIN UI & SCAN ---
 st.title("⚡ Nifty 50 Turbo Pro Dashboard")
-st.write(f"📍 Aizawl, Mizoram | {datetime.date.today()}")
+st.write(f"📍 Aizawl | All 50 Stocks Analysis | {datetime.date.today()}")
 
 if st.button('🚀 RUN HIGH-SPEED SCAN'):
     with st.spinner('Ranking 50 stocks...'):
@@ -76,24 +82,25 @@ if st.button('🚀 RUN HIGH-SPEED SCAN'):
         st.session_state.losers = full_df[full_df['% Forecast'] < 0].sort_values('% Forecast', ascending=True).head(10).copy()
         st.session_state.losers.insert(0, 'SL', range(1, len(st.session_state.losers) + 1))
 
-# Display Tables
+# --- 5. DATA TABLES & ALLOCATION ---
 if 'gainers' in st.session_state:
     col1, col2 = st.columns(2)
     with col1:
         st.success("📈 **Top 10 Ranked Gainers**")
-        st.dataframe(st.session_state.gainers, hide_index=True, use_container_width=True)
+        # Add Allocation column dynamically
+        gainers_disp = st.session_state.gainers.copy()
+        gainers_disp['Qty to Buy'] = (trading_capital // gainers_disp['Today Price']).astype(int)
+        st.dataframe(gainers_disp, hide_index=True, use_container_width=True)
+        
     with col2:
         st.error("📉 **Top 10 Ranked Losers**")
         st.dataframe(st.session_state.losers, hide_index=True, use_container_width=True)
 
-    # --- 4. THE SPINNING WHEEL GAME ---
+    # --- 6. THE SPINNING WHEEL GAME ---
     st.divider()
     st.subheader("🎡 The Nifty Fortune Wheel")
-    st.write("Spin to pick one of the Top 10 Gainers to Buy!")
-
-    wheel_placeholder = st.empty()
     
-    # Static Wheel View
+    wheel_placeholder = st.empty()
     wheel_placeholder.markdown("""
         <div class="wheel-container">
             <div class="pointer"></div>
@@ -101,32 +108,31 @@ if 'gainers' in st.session_state:
         </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🎰 SPIN FOR A BUY"):
+    if st.button("🎰 SPIN FOR A TARGET"):
         top_gainers = st.session_state.gainers['Stock'].tolist()
         
-        # Simulated Spin Animation
-        for i in range(15):
+        for i in range(12):
             pick = np.random.choice(top_gainers)
             wheel_placeholder.markdown(f"""
-                <div class="wheel-container">
-                    <div class="pointer"></div>
-                    <div class="wheel-graphic" style="transform: rotate({i*45}deg);">{pick}</div>
-                </div>
+                <div class="wheel-container"><div class="pointer"></div>
+                <div class="wheel-graphic" style="transform: rotate({i*60}deg);">{pick}</div></div>
             """, unsafe_allow_html=True)
             time.sleep(0.1)
         
-        # Final Result
         final_pick = np.random.choice(top_gainers)
         wheel_placeholder.markdown(f"""
-            <div class="wheel-container">
-                <div class="pointer"></div>
-                <div class="wheel-graphic" style="border: 5px solid #28a745; background: #f0fff4;">{final_pick}</div>
-            </div>
+            <div class="wheel-container"><div class="pointer"></div>
+            <div class="wheel-graphic" style="border: 5px solid #28a745; background: #f0fff4;">{final_pick}</div></div>
         """, unsafe_allow_html=True)
         
         st.balloons()
         win_data = st.session_state.gainers[st.session_state.gainers['Stock'] == final_pick].iloc[0]
-        qty = int(500000 // win_data['Today Price'])
-        st.success(f"✅ **AI Pick: {final_pick}** | Buy **{qty}** shares at ₹{win_data['Today Price']}. Target: ₹{win_data['Day 2 Price']}")
+        qty = int(trading_capital // win_data['Today Price'])
+        
+        st.info(f"🎯 **Wheel Pick: {final_pick}**")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Recommended Qty", f"{qty} Shares")
+        c2.metric("Est. Cost", f"₹{qty * win_data['Today Price']:,.0f}")
+        c3.metric("Expected Trend", f"+{win_data['% Forecast']}%")
 else:
-    st.info("Click 'Run High-Speed Scan' to fill the wheel with today's winners!")
+    st.info("Set your budget in the sidebar and click 'Run High-Speed Scan' to start.")
