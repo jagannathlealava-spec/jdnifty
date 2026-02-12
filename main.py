@@ -70,17 +70,25 @@ def get_google_price(ticker):
 # --- 3. UI DASHBOARD ---
 st.set_page_config(page_title="NiftyGram AI Pro", layout="centered")
 
-st.markdown("""
-    <style>
-    .stApp { background-color: #fafafa; }
-    .card {
-        background: white; border: 1px solid #dbdbdb;
-        border-radius: 15px; padding: 20px; margin-bottom: 25px;
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.05);
-    }
-    .price-today { color: #262626; font-size: 28px; font-weight: bold; margin: 0; }
-    .pred-box { background: #f8f9fa; border-radius: 10px; padding: 10px; margin-top: 15px; }
-    </style>
+st.markdown(f"""
+<div class="card">
+<h3 style="margin:0; color:#e1306c;">{t.split('.')[0]}</h3>
+<p style="color:gray; font-size:12px; margin-bottom:10px;">Today's Live NSE Price</p>
+<p class="price-today">₹{live_price:,.2f}</p>
+<div class="pred-box">
+<p style="margin:0; font-size:13px; font-weight:bold; color:#007bff;">🚀 AI 48-Hour Forecast</p>
+<table style="width:100%; margin-top:5px;">
+<tr>
+<td>Tomorrow:</td>
+<td style="text-align:right; font-weight:bold;">₹{future_preds[0]:,.2f}</td>
+</tr>
+<tr>
+<td>Day After:</td>
+<td style="text-align:right; font-weight:bold;">₹{future_preds[1]:,.2f}</td>
+</tr>
+</table>
+</div>
+</div>
 """, unsafe_allow_html=True)
 
 st.title("📸 NiftyGram AI Pro")
