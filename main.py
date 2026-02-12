@@ -6,7 +6,7 @@ import time
 import datetime
 
 # --- 1. CONFIG & SYSTEM SETUP ---
-st.set_page_config(page_title="Nifty 50 Turbo Pro", layout="wide")
+st.set_page_config(page_title="Nifty 50 Turbo Pro - Odisha", layout="wide")
 
 st.markdown("""
 <style>
@@ -72,7 +72,8 @@ st.sidebar.write(f"Allocating funds based on: **₹{trading_capital:,.2f}**")
 
 # --- 4. MAIN UI & SCAN ---
 st.title("⚡ Nifty 50 Turbo Pro Dashboard")
-st.write(f"📍 Aizawl | All 50 Stocks Analysis | {datetime.date.today()}")
+# Updated Location to Odisha
+st.write(f"📍 Odisha, India | Full 50-Stock Scan | {datetime.date.today()}")
 
 if st.button('🚀 RUN HIGH-SPEED SCAN'):
     with st.spinner('Ranking 50 stocks...'):
@@ -87,7 +88,6 @@ if 'gainers' in st.session_state:
     col1, col2 = st.columns(2)
     with col1:
         st.success("📈 **Top 10 Ranked Gainers**")
-        # Add Allocation column dynamically
         gainers_disp = st.session_state.gainers.copy()
         gainers_disp['Qty to Buy'] = (trading_capital // gainers_disp['Today Price']).astype(int)
         st.dataframe(gainers_disp, hide_index=True, use_container_width=True)
