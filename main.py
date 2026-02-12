@@ -85,7 +85,13 @@ for t in tickers
     </div>
 """, unsafe_allow_html=True)
             
+            # --- ACTION BUTTONS ---
             c1, c2 = st.columns(2)
-            if c1.button(f❤️ Buy {t.split('.')[0]})
+            
+            # Use the "icon" parameter - this is the 2026 error-proof way!
+            if c1.button(f"Buy {t.split('.')[0]}", icon="❤️", key=f"buy_{t}"):
                 st.confetti()
-                st.success(fOrder Simulated for {t}!)
+                st.success(f"Trade Signal Sent for {t}!")
+
+            if c2.button("Analysis", icon="📊", key=f"anal_{t}"):
+                st.info(f"Deep Analysis for {t} loading...")
