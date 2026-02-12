@@ -72,18 +72,18 @@ for t in tickers
     res = analyze_stock(t)
     if res
         with st.container()
-            st.markdown(f
-                div class=stock-card
-                    h3 style=margin0;{t.split('.')[0]}h3
-                    p style=colorgray; font-size12px;Aizawl, Mizoram • AI Prediction Activep
-                    hr
-                    h2 style=color{'green' if res['pred']  res['price'] else 'red'};
-                        ₹{res['price'].2f} 
-                        span style=font-size15px;({'▲' if res['pred']  res['price'] else '▼'} Expected)span
-                    h2
-                    pbMarket Moodb {'Bullish 🟢' if res['sent']  0 else 'Bearish 🔴'}p
-                div
-            , unsafe_allow_html=True)
+           st.markdown(f"""
+    <div class="stock-card">
+        <h3 style="margin:0;">{t.split('.')[0]}</h3>
+        <p style="color:gray; font-size:12px;">Aizawl, Mizoram • AI Prediction Active</p>
+        <hr>
+        <h2 style="color:{'green' if res['pred'] > res['price'] else 'red'};">
+            ₹{res['price']:.2f} 
+            <span style="font-size:15px;">({'▲' if res['pred'] > res['price'] else '▼'} Expected)</span>
+        </h2>
+        <p><b>Market Mood:</b> {'Bullish 🟢' if res['sent'] > 0 else 'Bearish 🔴'}</p>
+    </div>
+""", unsafe_allow_html=True)
             
             c1, c2 = st.columns(2)
             if c1.button(f❤️ Buy {t.split('.')[0]})
