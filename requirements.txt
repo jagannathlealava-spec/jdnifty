@@ -1,9 +1,6 @@
 streamlit
-yfinance
+requests
+beautifulsoup4
 pandas
 numpy
-scikit-learn
 nltk
-requests
-appdirs
-alpha_vantage
